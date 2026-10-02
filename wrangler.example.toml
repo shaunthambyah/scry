@@ -1,0 +1,15 @@
+name = "scry-clef-scoring"
+main = "worker/index.ts"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Replace with the installed extension ID (chrome-extension://<id>).
+ALLOWED_ORIGIN = "chrome-extension://REPLACE_WITH_EXTENSION_ID"
+
+[ai]
+binding = "AI"
+
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scry</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="../shared/fonts/fonts.css">
+  <link rel="stylesheet" href="./panel.css">
+</head>
+<body>
+  <main class="app">
+    <div class="sticky-shell">
+      <header class="topbar">
+        <h1>Scry</h1>
+        <div class="top-actions">
+          <button id="rerun" class="icon-button" type="button" aria-label="Rerun current results" title="Rerun current results" disabled>↻</button>
+          <button id="cancel" class="icon-button cancel-button" type="button" aria-label="Cancel research" title="Cancel research" hidden>×</button>
+          <a class="icon-button settings-link" href="../options/index.html" target="_blank" rel="noreferrer" aria-label="Settings" title="Settings">⚙</a>
+        </div>
+      </header>
+      <p id="query" class="query" aria-live="polite" hidden></p>
+      <details id="provenance" class="provenance" aria-label="Source provenance" hidden>
+        <summary>
+          <span id="favicon-stack" class="favicon-stack" aria-hidden="true"></span>
+          <span class="provenance-copy">
+            <span id="status-summary" class="status-summary"></span>
+            <span id="counts" class="counts"></span>
+          </span>
+          <span class="chevron" aria-hidden="true">⌄</span>
+        </summary>
+        <div id="progress-track" class="progress-track" role="progressbar" aria-label="Sources processed" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" hidden><span id="progress-bar"></span></div>
+        <div id="source-status-list" class="source-status-list"></div>
+        <div class="scoring-tools">
+          <span id="scoring-status" class="scoring-status"></span>
+          <details id="add-model" class="add-model" hidden>
+            <summary>+ Add model</summary>
+            <div class="add-model-menu">
+              <p>Add another scorer to these frozen passages</p>
+              <div id="add-model-options"></div>
+              <button id="add-model-submit" type="button" class="add-model-submit">Add selected</button>
+            </div>
+          </details>
+        </div>
+      </details>
+      <nav class="tabs" aria-label="Research views" role="tablist">
+        <button class="tab active" id="grouped-tab" type="button" role="tab" aria-selected="true" aria-controls="grouped-view" data-view="grouped">Grouped</button>
+        <button class="tab" id="passages-tab" type="button" role="tab" aria-selected="false" aria-controls="passages-view" data-view="passages">Passages</button>
+      </nav>
+    </div>
+    <section id="grouped-view" class="view" role="tabpanel" aria-labelledby="grouped-tab"></section>
+    <section id="passages-view" class="view" role="tabpanel" aria-labelledby="passages-tab" hidden></section>
+  </main>
+  <script src="./panel.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scry Settings</title>
+  <link rel="stylesheet" href="../shared/theme.css">
+  <link rel="stylesheet" href="../shared/fonts/fonts.css">
+  <link rel="stylesheet" href="./options.css">
+</head>
+<body>
+  <main class="settings">
+    <header>
+      <p class="eyebrow">Scry · Settings</p>
+      <h1>Research settings</h1>
+      <p class="intro">Choose the passage scorer for your next research run.</p>
+    </header>
+    <section aria-labelledby="scoring-heading">
+      <h2 id="scoring-heading">Default scoring</h2>
+      <label for="scoring-model">Default scoring</label>
+      <select id="scoring-model" name="scoring-model">
+        <option value="auto">Automatic (saved Jev key, otherwise local)</option>
+        <option value="mock">Local development scorer</option>
+        <option value="jev">Jev</option>
+        <option value="clef-flash">Clef Flash · faster</option>
+        <option value="clef">Clef</option>
+        <option value="consensus">Consensus</option>
+      </select>
+      <p class="help">This is the default for new searches. Choose a different scorer for one search from the Google Research these results menu.</p>
+      <label for="worker-url">Cloudflare Scoring Worker URL</label>
+      <input id="worker-url" type="url" inputmode="url" placeholder="https://your-worker.example.workers.dev/score" spellcheck="false">
+      <div class="actions"><button id="save-worker" type="button" class="secondary">Save Worker URL</button><button id="clear-worker" type="button" class="secondary">Remove Worker URL</button></div>
+      <p id="worker-state" class="help" aria-live="polite"></p>
+    </section>
+    <section aria-labelledby="jev-heading">
+      <h2 id="jev-heading">Jev access</h2>
+      <p class="integration-note">Optional existing TypeSafe Jev scorer. Its key remains in extension-local storage for this development build.</p>
+      <label for="api-key">TypeSafe API key</label>
+      <input id="api-key" name="api-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="Paste a key to save or replace it">
+      <p id="key-state" class="help" aria-live="polite">Checking saved key…</p>
+      <div class="actions">
+        <button id="save-key" type="button" class="primary">Save key</button>
+        <button id="allow-api" type="button" class="secondary">Allow TypeSafe API access</button>
+        <button id="clear-key" type="button" class="secondary">Remove saved key</button>
+      </div>
+    </section>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <aside>
+      <strong>Cloudflare credentials</strong>
+      <p>Scry sends structured passage judgments to your configured Worker. Cloudflare credentials stay in the Worker’s Workers AI binding and are never entered into or packaged with the extension.</p>
+    </aside>
+  </main>
+  <script src="./options.js"></script>
+</body>
+</html>

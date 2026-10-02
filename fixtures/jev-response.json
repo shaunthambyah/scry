@@ -1,0 +1,8 @@
+{
+  "description": "Shape expected from a future JevTransport implementation. Not an invented Jev endpoint.",
+  "request": {
+    "query": "does increased inference compute improve reasoning at fixed model weights",
+    "passages": [{ "id": "fixture:p1", "headingPath": ["Scaling results"], "text": "Verbatim source passage" }]
+  },
+  "response": [{ "passageId": "fixture:p1", "relevance": 0.91, "directness": 0.94, "evidenceStrength": 0.77, "relation": "supports" }]
+}

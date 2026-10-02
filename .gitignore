@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.test-build/
+coverage/
+.env
+.env.*
+!.env.example
+.wrangler/
+wrangler.toml
+worker-configuration.d.ts
+.DS_Store
+npm-debug.log*

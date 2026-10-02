@@ -1,0 +1,22 @@
+{
+  "name": "scry-serp-research-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run build && tsc -p tsconfig.tests.json && node --test .test-build/tests/*.test.js",
+    "fixtures": "npm run build && node scripts/run-fixtures.mjs"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.13.0",
+    "esbuild": "^0.25.0",
+    "jsdom": "^24.1.3",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0"
+  }
+}

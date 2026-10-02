@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": ".test-build",
+    "esModuleInterop": true
+  },
+  "include": ["src/models/**/*.ts", "src/scoring/**/*.ts", "src/storage/scoringSettings.ts", "worker/**/*.ts", "src/background/hostPermissions.ts", "src/extraction/**/*.ts", "src/ranking/**/*.ts", "src/pipeline/**/*.ts", "src/content/googleSerpParser.ts", "tests/**/*.ts", "types/**/*.d.ts"]
+}
