@@ -15,11 +15,25 @@ const SESSION_TAB_KEY = "scryResearchTabId";
 const MAX_HTML_BYTES = 2_500_000;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_CONCURRENCY = 4;
+const GOOGLE_GOTO_FILTERS = [
+  "https://*.google.com/goto*", "https://*.google.com.au/goto*", "https://*.google.co.uk/goto*",
+  "https://*.google.ca/goto*", "https://*.google.co.nz/goto*", "https://*.google.de/goto*",
+  "https://*.google.fr/goto*", "https://*.google.it/goto*", "https://*.google.es/goto*",
+  "https://*.google.co.in/goto*", "https://*.google.co.jp/goto*", "https://*.google.com.br/goto*",
+  "https://*.google.com.sg/goto*", "https://*.google.co.kr/goto*", "https://*.google.nl/goto*",
+  "https://*.google.com.mx/goto*"
+];
+interface PendingGoogleRedirect { resolve: (destination: string) => void }
+const pendingGoogleRedirects = new Map<string, PendingGoogleRedirect>();
 let currentRun: ResearchRun | null = null;
 let currentRunId: string | null = null;
 let activeTabId: number | null = null;
 let activeAbortController: AbortController | null = null;
 let offscreenReady: Promise<void> | null = null;
+
+chrome.webRequest.onBeforeRedirect.addListener((details) => {
+  pendingGoogleRedirects.get(details.url)?.resolve(details.redirectUrl);
+}, { urls: GOOGLE_GOTO_FILTERS });
 
 function cleanLegacyDetails(run: ResearchRun): ResearchRun {
   const cleaned = structuredClone(run);
@@ -290,6 +304,89 @@ async function loadSource(result: SearchResult, setStage: (stage: SourceLifecycl
   };
 }
 
+function isGoogleHost(hostname: string): boolean {
+  return /(^|\.)google\.[^.]+(?:\.[^.]+)?$/i.test(hostname);
+}
+
+function isGoogleGotoUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    return isGoogleHost(url.hostname) && url.pathname === "/goto" && url.searchParams.has("url");
+  } catch { return false; }
+}
+
+function requestGoogleGotoDestination(rawUrl: string, method: "HEAD" | "GET", runSignal: AbortSignal): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const controller = new AbortController();
+    const requestKey = new URL(rawUrl).href;
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout>;
+    let responseGraceTimer: ReturnType<typeof setTimeout> | undefined;
+    const finish = (destination?: string): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (responseGraceTimer) clearTimeout(responseGraceTimer);
+      pendingGoogleRedirects.delete(requestKey);
+      runSignal.removeEventListener("abort", abortRun);
+      controller.abort();
+      resolve(destination);
+    };
+    const abortRun = (): void => finish();
+    pendingGoogleRedirects.set(requestKey, { resolve: (destination) => finish(destination) });
+    timeout = setTimeout(() => finish(), 7_000);
+    if (runSignal.aborted) { finish(); return; }
+    runSignal.addEventListener("abort", abortRun, { once: true });
+    void globalThis.fetch(rawUrl, {
+      method,
+      redirect: "manual",
+      credentials: "omit",
+      cache: "no-store",
+      signal: controller.signal
+    }).then((response) => {
+      const location = response.headers.get("location");
+      let destination: string | undefined;
+      if (location) {
+        try { destination = new URL(location, rawUrl).href; }
+        catch { /* Treat an invalid Location as an unresolved result. */ }
+      }
+      void response.body?.cancel().catch(() => undefined);
+      if (destination) {
+        finish(destination);
+      } else if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+        responseGraceTimer = setTimeout(() => finish(), 250);
+      } else {
+        finish();
+      }
+    }).catch(() => finish());
+  });
+}
+
+async function resolveGoogleGotoResult(result: SearchResult, runSignal: AbortSignal): Promise<SearchResult> {
+  if (!isGoogleGotoUrl(result.url)) return result;
+  let destination = await requestGoogleGotoDestination(result.url, "HEAD", runSignal);
+  if (!destination && !runSignal.aborted) destination = await requestGoogleGotoDestination(result.url, "GET", runSignal);
+  if (runSignal.aborted) throw new Error("Research run cancelled.");
+  if (!destination) throw new Error("Google did not reveal this result's destination URL.");
+  let url: URL;
+  try { url = new URL(destination, result.url); }
+  catch { throw new Error("Google returned an invalid result destination URL."); }
+  if (!/^https?:$/.test(url.protocol) || isGoogleHost(url.hostname)) throw new Error("Google did not reveal an external result URL.");
+  return { ...result, url: url.href, domain: url.hostname.replace(/^www\./, "") };
+}
+
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await worker(items[index]);
+    }
+  }));
+  return results;
+}
+
 async function startResearch(query: SearchQuery, results: SearchResult[], tabId: number, runId: string, modeOverride?: ScoringMode, scorerIdsOverride?: string[]): Promise<void> {
   if (!query?.text.trim() || !Array.isArray(results) || !results.length) return;
   const scoringSettingsSnapshot = readScoringSettings();
@@ -309,7 +406,28 @@ async function startResearch(query: SearchQuery, results: SearchResult[], tabId:
   await chrome.storage.session.set({ [SESSION_TAB_KEY]: tabId });
   sendUpdate(run);
 
-  const requiredHostOrigins = researchHostOrigins(unique.map((result) => result.url));
+  const resolved = await mapWithConcurrency(unique, MAX_CONCURRENCY, async (result) => {
+    try { return { result: await resolveGoogleGotoResult(result, controller.signal) }; }
+    catch (error) { return { result, error: error instanceof Error ? error.message : "Could not resolve this Google result." }; }
+  });
+  if (currentRunId !== run.runId || controller.signal.aborted) return;
+  resolved.forEach((outcome, index) => {
+    const source = run.sources[index];
+    source.result = outcome.result;
+    if (outcome.error) {
+      source.status = "failed";
+      source.error = outcome.error;
+    }
+  });
+  sendUpdate(run);
+
+  const requiredHostOrigins = researchHostOrigins(run.sources.filter((source) => source.status !== "failed").map(({ result }) => result.url));
+  if (!requiredHostOrigins.length) {
+    run.status = "failed";
+    activeAbortController = null;
+    sendUpdate(run);
+    return;
+  }
   let granted: boolean;
   try {
     granted = await hasResearchHostPermission(chrome.permissions, requiredHostOrigins);
@@ -318,7 +436,7 @@ async function startResearch(query: SearchQuery, results: SearchResult[], tabId:
     run.status = "failed";
     run.hostPermissionNeeded = true;
     run.hostPermissionOrigins = requiredHostOrigins;
-    run.sources.forEach((source) => { source.status = "failed"; source.error = error instanceof Error ? error.message : "Could not check page access."; });
+    run.sources.filter((source) => source.status !== "failed").forEach((source) => { source.status = "failed"; source.error = error instanceof Error ? error.message : "Could not check page access."; });
     activeAbortController = null;
     sendUpdate(run);
     return;
@@ -328,7 +446,7 @@ async function startResearch(query: SearchQuery, results: SearchResult[], tabId:
     run.status = "failed";
     run.hostPermissionNeeded = true;
     run.hostPermissionOrigins = requiredHostOrigins;
-    run.sources.forEach((source) => { source.status = "failed"; source.error = "Page access is needed to read this result."; });
+    run.sources.filter((source) => source.status !== "failed").forEach((source) => { source.status = "failed"; source.error = "Page access is needed to read this result."; });
     activeAbortController = null;
     sendUpdate(run);
     return;

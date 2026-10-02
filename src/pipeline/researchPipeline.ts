@@ -137,6 +137,7 @@ export async function processResearchRun(
     while (nextIndex < run.sources.length && isCurrent()) {
       const sourceIndex = nextIndex++;
       const progress = run.sources[sourceIndex];
+      if (progress.status === "failed") { update(); continue; }
       try {
         const document = await loader.load(progress.result, (status) => {
           if (!isCurrent()) return;

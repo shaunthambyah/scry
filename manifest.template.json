@@ -11,8 +11,26 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["sidePanel", "storage", "offscreen", "scripting"],
+  "permissions": ["sidePanel", "storage", "offscreen", "scripting", "webRequest"],
   "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https:;" },
+  "host_permissions": [
+    "https://*.google.com/*",
+    "https://*.google.com.au/*",
+    "https://*.google.co.uk/*",
+    "https://*.google.ca/*",
+    "https://*.google.co.nz/*",
+    "https://*.google.de/*",
+    "https://*.google.fr/*",
+    "https://*.google.it/*",
+    "https://*.google.es/*",
+    "https://*.google.co.in/*",
+    "https://*.google.co.jp/*",
+    "https://*.google.com.br/*",
+    "https://*.google.com.sg/*",
+    "https://*.google.co.kr/*",
+    "https://*.google.nl/*",
+    "https://*.google.com.mx/*"
+  ],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "background": { "service_worker": "background/serviceWorker.js", "type": "module" },
   "action": {

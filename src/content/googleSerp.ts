@@ -9,6 +9,8 @@ let mainButton: HTMLButtonElement | null = null;
 let menuButton: HTMLButtonElement | null = null;
 let menu: HTMLDivElement | null = null;
 let selectedMode = "auto";
+let isStartingResearch = false;
+let controlUpdateTimer: number | undefined;
 let choiceState: ChoiceResponse = { models: [], consensusAvailable: false, defaultMode: "auto" };
 
 async function refreshChoices(): Promise<void> {
@@ -81,6 +83,7 @@ async function startResearch(): Promise<void> {
   const query = provider.getQuery();
   const results = provider.getResults();
   if (!mainButton || mainButton.disabled) return;
+  isStartingResearch = true;
   mainButton.disabled = true;
   mainButton.textContent = "Opening research…";
   try {
@@ -88,9 +91,9 @@ async function startResearch(): Promise<void> {
   } catch (error) {
     console.warn("Scry could not start research", error);
   } finally {
+    isStartingResearch = false;
     if (mainButton?.isConnected) {
-      mainButton.disabled = false;
-      mainButton.textContent = "Research these results";
+      ensureControl();
     }
   }
 }
@@ -137,7 +140,7 @@ function createControl(): void {
 function ensureControl(): void {
   const query = provider.getQuery();
   const results = provider.getResults();
-  if (!query.text || !results.length) {
+  if (!query.text) {
     root?.remove();
     root = null;
     mainButton = null;
@@ -146,18 +149,35 @@ function ensureControl(): void {
     return;
   }
   if (!root) createControl();
+  if (!isStartingResearch) {
+    const hasResults = results.length > 0;
+    mainButton!.disabled = !hasResults;
+    const buttonText = hasResults ? "Research these results" : "No web results detected";
+    if (mainButton!.textContent !== buttonText) mainButton!.textContent = buttonText;
+    mainButton!.title = hasResults ? "" : "Scry could not read a Google web result on this page.";
+    menuButton!.disabled = !hasResults;
+    menuButton!.title = hasResults ? "Choose scoring for this search" : "Scoring choices are available when web results are detected.";
+  }
   if (!root!.isConnected) document.documentElement.append(root!);
 }
 
-new MutationObserver(ensureControl).observe(document.documentElement, { subtree: true, childList: true });
-void refreshChoices().then(ensureControl);
+function scheduleControlUpdate(): void {
+  if (controlUpdateTimer !== undefined) return;
+  controlUpdateTimer = window.setTimeout(() => {
+    controlUpdateTimer = undefined;
+    ensureControl();
+  }, 180);
+}
+
+new MutationObserver(scheduleControlUpdate).observe(document.documentElement, { subtree: true, childList: true });
+void refreshChoices().then(scheduleControlUpdate);
 ensureControl();
 window.setInterval(() => {
   const nextQuery = provider.getQuery().normalized;
   if (activeNormalizedQuery && nextQuery && nextQuery !== activeNormalizedQuery) {
     void chrome.runtime.sendMessage({ type: "QUERY_CHANGED", query: nextQuery });
     void refreshChoices();
+    scheduleControlUpdate();
   }
   activeNormalizedQuery = nextQuery;
-  ensureControl();
 }, 900);

@@ -47,6 +47,13 @@ declare namespace chrome {
     function request(options: { origins?: string[] }): Promise<boolean>;
     function contains(options: { origins?: string[] }): Promise<boolean>;
   }
+  namespace webRequest {
+    interface BeforeRedirectDetails { url: string; redirectUrl: string }
+    interface BeforeRedirectEvent {
+      addListener(callback: (details: BeforeRedirectDetails) => void, filter: { urls: string[] }): void;
+    }
+    const onBeforeRedirect: BeforeRedirectEvent;
+  }
   namespace storage {
     const local: {
       get(keys?: string | string[] | null): Promise<Record<string, any>>;
